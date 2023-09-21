@@ -2,14 +2,6 @@ import aplpy
 from astropy.io import fits
 import matplotlib.pyplot as plt
 
-subject = 'NGC3256'
-source = 'JWST'
-v_min = 0.0
-v_max = 100.0
-stretch = 'power'
-exponent = 0.45
-north = False
-
 
 def isolate_image_extension(fits_file, extension):
     """
@@ -28,59 +20,94 @@ def isolate_image_extension(fits_file, extension):
     fits.writeto('%s_image.fits' % fits_file.rstrip('.fits'), data, header)
 
 
+# Get user input
+input_r = input("Enter red channel FITS source file: ")
+input_g = input("Enter green channel FITS source file: ")
+input_b = input("Enter blue channel FITS source file: ")
+v_min = input("Enter v_min (eg. 0.0): ")
+v_max = input("Enter v_max (eg. 100.0 ")
+exponent = input("Enter exponent (eg. 0.45): ")
+input_north = input("rotate north up? (yes|no): ")
+
+if input_north.lower() in ["yes", "y"]:
+    north = True
+else:
+    north = False
+
+stretch = 'power'
+
+# Get data from FITS header
+hdul = fits.open(input_r)
+target = hdul[0].header["targname"]
+source = hdul[0].header["telescop"]
+red_filter = hdul[0].header["filter"]
+hdul = fits.open(input_g)
+green_filter = hdul[0].header["filter"]
+hdul = fits.open(input_b)
+blue_filter = hdul[0].header["filter"]
+
+# Construct output filename from input filename
+out_file = input_r[:-15]
+
 # Create new FITS files containing only the image extension
-for exposure in [
-        'jw01328-o012_t019/jw01328-o012_t019_nircam_clear-f335m_i2d.fits',
-        'jw01328-o012_t019/jw01328-o012_t019_nircam_clear-f200w_i2d.fits',
-        'jw01328-o012_t019/jw01328-o012_t019_nircam_clear-f150w_i2d.fits']:
+for exposure in [input_r, input_g, input_b]:
     isolate_image_extension(exposure, 1)
 
 # Combine FITS files into *_cube.fits
 aplpy.make_rgb_cube([
-        'jw01328-o012_t019/jw01328-o012_t019_nircam_clear-f335m_i2d_image.fits',
-        'jw01328-o012_t019/jw01328-o012_t019_nircam_clear-f200w_i2d_image.fits',
-        'jw01328-o012_t019/jw01328-o012_t019_nircam_clear-f150w_i2d_image.fits'],
-        'jw01328-o012_t019_cube.fits',
+        input_r[:-5]+'_image.fits',
+        input_g[:-5]+'_image.fits',
+        input_b[:-5]+'_image.fits'],
+        out_file+'_cube.fits',
         north=north)
 
 # Stretch image_data and make .png
 aplpy.make_rgb_image(
-        'jw01328-o012_t019_cube.fits',
-        'jw01328-o012_t019.png',
-        vmin_r=v_min,
-        vmin_g=v_min,
-        vmin_b=v_min,
-        vmax_r=v_max,
-        vmax_g=v_max,
-        vmax_b=v_max,
+        out_file+'_cube.fits',
+        out_file+'.png',
+        vmin_r=float(v_min),
+        vmin_g=float(v_min),
+        vmin_b=float(v_min),
+        vmax_r=float(v_max),
+        vmax_g=float(v_max),
+        vmax_b=float(v_max),
         stretch_r=stretch,
         stretch_g=stretch,
         stretch_b=stretch,
-        exponent_r=exponent,
-        exponent_b=exponent,
-        exponent_g=exponent,)
+        exponent_r=float(exponent),
+        exponent_b=float(exponent),
+        exponent_g=float(exponent),)
 
 # Create figure from .png
-fig = aplpy.FITSFigure('jw01328-o012_t019.png', hdu=0)
+fig = aplpy.FITSFigure(out_file+'.png', hdu=0)
 
 # Construct title
-title = (subject
+title = (out_file+"_cube.fits\n"
+         + target
          + " "
          + source
          + "    v_min:"
-         + str(v_min)
+         + v_min
          + "  v_max:"
-         + str(v_max)
+         + v_max
          + " stretch:"
          + stretch
          + " exp:"
-         + str(exponent)
+         + exponent
          + " north:"
-         + str(north))
+         + str(north)
+         + "\n"
+         + "r: "
+         + red_filter
+         + " g: "
+         + green_filter
+         + " b: "
+         + blue_filter)
 
 print(title)
 fig.set_title(title)
 
 fig.show_rgb()
 
+plt.savefig(out_file+"_fig.png")
 plt.show()
