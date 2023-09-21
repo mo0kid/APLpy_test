@@ -1,3 +1,5 @@
+import os
+
 import aplpy
 from astropy.io import fits
 import matplotlib.pyplot as plt
@@ -38,28 +40,37 @@ stretch = 'power'
 
 # Get data from FITS header
 hdul = fits.open(input_r)
-target = hdul[0].header["targname"]
-source = hdul[0].header["telescop"]
-red_filter = hdul[0].header["filter"]
+target = hdul[0].header["targname"]         # Standard astronomical catalog name for target
+source = hdul[0].header["telescop"]         # Telescope used to acquire the data
+out_file = hdul[0].header["targprop"]       # Proposer's name for the target
+red_filter = hdul[0].header["filter"]       # Name of the filter element used
 hdul = fits.open(input_g)
 green_filter = hdul[0].header["filter"]
 hdul = fits.open(input_b)
 blue_filter = hdul[0].header["filter"]
 
-# Construct output filename from input filename
-out_file = input_r[:-15]
-
 # Create new FITS files containing only the image extension
 for exposure in [input_r, input_g, input_b]:
     isolate_image_extension(exposure, 1)
 
+# Set rgb_cube filenames
+image_r = input_r[:-5]+'_image.fits'
+image_g = input_g[:-5]+'_image.fits'
+image_b = input_b[:-5]+'_image.fits'
+image_cube = out_file+'_cube.fits'
+
 # Combine FITS files into *_cube.fits
 aplpy.make_rgb_cube([
-        input_r[:-5]+'_image.fits',
-        input_g[:-5]+'_image.fits',
-        input_b[:-5]+'_image.fits'],
-        out_file+'_cube.fits',
+        image_r,
+        image_g,
+        image_b],
+        image_cube,
         north=north)
+
+# Tidy up _image.fits files
+os.remove(image_r)
+os.remove(image_g)
+os.remove(image_b)
 
 # Stretch image_data and make .png
 aplpy.make_rgb_image(
@@ -83,10 +94,10 @@ fig = aplpy.FITSFigure(out_file+'.png', hdu=0)
 
 # Construct title
 title = (out_file+"_cube.fits\n"
-         + target
-         + " "
          + source
-         + "    v_min:"
+         + " | "
+         + target
+         + " | v_min:"
          + v_min
          + "  v_max:"
          + v_max
@@ -99,10 +110,11 @@ title = (out_file+"_cube.fits\n"
          + "\n"
          + "r: "
          + red_filter
-         + " g: "
+         + "    g: "
          + green_filter
-         + " b: "
-         + blue_filter)
+         + "    b: "
+         + blue_filter
+         + "\n")
 
 print(title)
 fig.set_title(title)
